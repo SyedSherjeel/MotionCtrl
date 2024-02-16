@@ -4,7 +4,7 @@
 */.DS_Store
 */*/.DS_Store
 */**/.DS_Store
-
+motionctrl.egg-info
 *.pyc
 gradio_temp
 *.pth

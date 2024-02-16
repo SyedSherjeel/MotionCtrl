@@ -1,3 +1,6 @@
+import os
+import importlib.util
+
 import cv2
 import numpy as np
 
@@ -5,15 +8,17 @@ from gradio_utils.flow_utils import bivariate_Gaussian
 
 OBJECT_MOTION_MODE = ["Provided Trajectory", "Custom Trajectory"]
 
+spec = importlib.util.find_spec("motionctrl")
+package_root = os.path.dirname(str(spec.submodule_search_locations[0]))
 PROVIDED_TRAJS = {
-    "horizon_1": "examples/trajectories/horizon_2.txt",
-    "swaying_1": "examples/trajectories/shake_1.txt",
-    "swaying_2": "examples/trajectories/shake_2.txt",
-    "swaying_3": "examples/trajectories/shaking_10.txt",
-    "curve_1": "examples/trajectories/curve_1.txt",
-    "curve_2": "examples/trajectories/curve_2.txt",
-    "curve_3": "examples/trajectories/curve_3.txt",
-    "curve_4": "examples/trajectories/curve_4.txt",
+    "horizon_1": os.path.join(package_root, "examples", "trajectories", "horizon_2.txt"),
+    "swaying_1": os.path.join(package_root, "examples", "trajectories", "shake_1.txt"),
+    "swaying_2": os.path.join(package_root, "examples", "trajectories", "shake_2.txt"),
+    "swaying_3": os.path.join(package_root, "examples", "trajectories", "shaking_10.txt"),
+    "curve_1": os.path.join(package_root, "examples", "trajectories", "curve_1.txt"),
+    "curve_2": os.path.join(package_root, "examples", "trajectories", "curve_2.txt"),
+    "curve_3": os.path.join(package_root, "examples", "trajectories", "curve_3.txt"),
+    "curve_4": os.path.join(package_root, "examples", "trajectories", "curve_4.txt"),
 }
 
 
@@ -38,6 +43,7 @@ def get_provided_traj(traj_name):
     traj = read_points(PROVIDED_TRAJS[traj_name])
     # xrange from 256 to 1024
     traj = [[int(1024*x/256), int(1024*y/256)] for x,y in traj]
+    print("traject",traj)
     return traj
 
 blur_kernel = bivariate_Gaussian(99, 10, 10, 0, grid=None, isotropic=True)

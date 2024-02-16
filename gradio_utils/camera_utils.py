@@ -27,7 +27,7 @@ COMPLEX_CAMERA = {
     "Pose_2": "examples/camera_poses/test_camera_d971457c81bca597.json",
     "Pose_3": "examples/camera_poses/test_camera_Round-ZoomIn.json",
     "Pose_4": "examples/camera_poses/test_camera_Round-RI_90.json",
-    "Pose_5": "examples/camera_poses/test_camera_Round-RI-120.json",
+    "Pose_5": "examples/camera_poses/test_camera_Round-RI_120.json",
     "Pose_6": "examples/camera_poses/test_camera_018f7907401f2fef.json",
     "Pose_7": "examples/camera_poses/test_camera_088b93f15ca8745d.json",
     "Pose_8": "examples/camera_poses/test_camera_b133a504fc90a2d1.json",
@@ -101,14 +101,13 @@ def process_camera(camera_dict):
         with open(COMPLEX_CAMERA[camera_dict['complex']]) as f:
             RT = json.load(f) # [16, 12]
         RT = np.array(RT).reshape(-1, 3, 4)
-        print(RT.shape)
+        
         return RT
-
 
     motion_list = camera_dict['motion']
     mode = camera_dict['mode']
     speed = camera_dict['speed']
-    print(len(motion_list))
+    
     if len(motion_list) == 0:
         angle = np.array([0,0,0])
         T = np.array([0,0,0])
@@ -118,7 +117,7 @@ def process_camera(camera_dict):
     elif len(motion_list) == 1:
         angle = np.array(CAMERA[motion_list[0]]["angle"])
         T = np.array(CAMERA[motion_list[0]]["T"])
-        print(angle, T)
+        
         RT = get_camera_motion(angle, T, speed, 16)
         
         

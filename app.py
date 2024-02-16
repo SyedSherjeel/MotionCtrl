@@ -1,7 +1,6 @@
 import argparse
 import os
 import tempfile
-from functools import partial
 
 import cv2
 import gradio as gr
@@ -9,8 +8,6 @@ import imageio
 import numpy as np
 import torch
 import torchvision
-from omegaconf import OmegaConf
-from PIL import Image
 from pytorch_lightning import seed_everything
 
 from gradio_utils.camera_utils import CAMERA_MOTION_MODE, process_camera
@@ -24,7 +21,6 @@ from main.evaluation.motionctrl_inference import (DEFAULT_NEGATIVE_PROMPT,
 from utils.utils import instantiate_from_config
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-SPACE_ID = os.environ.get('SPACE_ID', '')
 
 
 #### Description ####
@@ -79,12 +75,12 @@ button {border-radius: 8px !important;}
 
 
 T_base = [
-            [1.,0.,0.],             ## W2C  left
-            [-1.,0.,0.],            ## W2C  right
-            [0., 1., 0.],           ## W2C  up     
-            [0.,-1.,0.],            ## W2C  down
-            [0.,0.,1.],             ## W2C  zoom out
-            [0.,0.,-1.],            ## W2C  zoom in
+            [1.,0.,0.],             ## W2C  x 的正方向： 相机朝左  left
+            [-1.,0.,0.],            ## W2C  x 的负方向： 相机朝右  right
+            [0., 1., 0.],           ## W2C  y 的正方向： 相机朝上  up     
+            [0.,-1.,0.],            ## W2C  y 的负方向： 相机朝下  down
+            [0.,0.,1.],             ## W2C  z 的正方向： 相机往前  zoom out
+            [0.,0.,-1.],            ## W2C  z 的负方向： 相机往前  zoom in
         ]   
 radius = 1
 n = 16
@@ -294,157 +290,9 @@ def fn_traj_reset():
     return "Click to specify trajectory"
 
 ###########################################
+models_dir = "/home/evobits/sherjeel/img2vid/98_motion_ctrl"
+pipeline = MotionCtrlPipeline(models_dir)
 
-model_path='./checkpoints/motionctrl.pth'
-config_path='./configs/inference/config_both.yaml'
-
-config = OmegaConf.load(config_path)
-model_config = config.pop("model", OmegaConf.create())
-model = instantiate_from_config(model_config)
-if torch.cuda.is_available():
-    model = model.cuda()
-
-model = load_model_checkpoint(model, model_path)
-model.eval()
-
-
-def model_run(prompts, infer_mode, seed, n_samples):
-    global traj_list
-    global camera_dict
-
-    RT = process_camera(camera_dict).reshape(-1,12)
-    traj_flow = process_traj(traj_list).transpose(3,0,1,2)
-    print(prompts)
-    print(RT.shape)
-    print(traj_flow.shape)
-
-    noise_shape = [1, 4, 16, 32, 32]
-    unconditional_guidance_scale = 7.5
-    unconditional_guidance_scale_temporal = None
-    # n_samples = 1
-    ddim_steps= 50
-    ddim_eta=1.0
-    cond_T=800
-
-    if n_samples < 1:
-        n_samples = 1
-    if n_samples > 4:
-        n_samples = 4
-
-    seed_everything(seed)
-
-    if infer_mode == MODE[0]:
-        camera_poses = RT
-        camera_poses = torch.tensor(camera_poses).float()
-        camera_poses = camera_poses.unsqueeze(0)
-        trajs = None
-        if torch.cuda.is_available():
-            camera_poses = camera_poses.cuda()
-    elif infer_mode == MODE[1]:
-        trajs = traj_flow
-        trajs = torch.tensor(trajs).float()
-        trajs = trajs.unsqueeze(0)
-        camera_poses = None
-        if torch.cuda.is_available():
-            trajs = trajs.cuda()
-    else:
-        camera_poses = RT
-        trajs = traj_flow
-        camera_poses = torch.tensor(camera_poses).float()
-        trajs = torch.tensor(trajs).float()
-        camera_poses = camera_poses.unsqueeze(0)
-        trajs = trajs.unsqueeze(0)
-        if torch.cuda.is_available():
-            camera_poses = camera_poses.cuda()
-            trajs = trajs.cuda()
-
-
-    ddim_sampler = DDIMSampler(model)
-    batch_size = noise_shape[0]
-    ## get condition embeddings (support single prompt only)
-    if isinstance(prompts, str):
-        prompts = [prompts]
-
-    for i in range(len(prompts)):
-        prompts[i] = f'{prompts[i]}, {post_prompt}'
-
-    cond = model.get_learned_conditioning(prompts)
-    if camera_poses is not None:
-        RT = camera_poses[..., None]
-    else:
-        RT = None
-
-    if trajs is not None:
-        traj_features = model.get_traj_features(trajs)
-    else:
-        traj_features = None
-
-    if unconditional_guidance_scale != 1.0:
-        # prompts = batch_size * [""]
-        prompts = batch_size * [DEFAULT_NEGATIVE_PROMPT]
-        uc = model.get_learned_conditioning(prompts)
-        if traj_features is not None:
-            un_motion = model.get_traj_features(torch.zeros_like(trajs))
-        else:
-            un_motion = None
-        uc = {"features_adapter": un_motion, "uc": uc}
-    else:
-        uc = None
-
-    batch_variants = []
-    for _ in range(n_samples):
-        if ddim_sampler is not None:
-            samples, _ = ddim_sampler.sample(S=ddim_steps,
-                                            conditioning=cond,
-                                            batch_size=noise_shape[0],
-                                            shape=noise_shape[1:],
-                                            verbose=False,
-                                            unconditional_guidance_scale=unconditional_guidance_scale,
-                                            unconditional_conditioning=uc,
-                                            eta=ddim_eta,
-                                            temporal_length=noise_shape[2],
-                                            conditional_guidance_scale_temporal=unconditional_guidance_scale_temporal,
-                                            features_adapter=traj_features,
-                                            pose_emb=RT,
-                                            cond_T=cond_T
-                                            )        
-        ## reconstruct from latent to pixel space
-        batch_images = model.decode_first_stage(samples)
-        batch_variants.append(batch_images)
-    ## variants, batch, c, t, h, w
-    batch_variants = torch.stack(batch_variants, dim=1)
-    batch_variants = batch_variants[0]
-    
-    # file_path = save_results(batch_variants, "MotionCtrl", "gradio_temp", fps=10)
-    file_path = save_results(batch_variants, fps=10)
-    print(file_path)
-
-    return gr.update(value=file_path, width=256*n_samples, height=256)
-
-    # return file_path
-
-def save_results(video, fps=10):
-    
-    # b,c,t,h,w
-    video = video.detach().cpu()
-    video = torch.clamp(video.float(), -1., 1.)
-    n = video.shape[0]
-    video = video.permute(2, 0, 1, 3, 4) # t,n,c,h,w
-    frame_grids = [torchvision.utils.make_grid(framesheet, nrow=int(n)) for framesheet in video] #[3, 1*h, n*w]
-    grid = torch.stack(frame_grids, dim=0) # stack in temporal dim [t, 3, n*h, w]
-    grid = (grid + 1.0) / 2.0
-    grid = (grid * 255).to(torch.uint8).permute(0, 2, 3, 1) # [t, h, w*n, 3]
-    
-    path = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
-
-    writer = imageio.get_writer(path, format='mp4', mode='I', fps=fps)
-    for i in range(grid.shape[0]):
-        img = grid[i].numpy()
-        writer.append_data(img)
-
-    writer.close()
-
-    return path
 
 def visualized_step2(infer_mode):
 
@@ -1073,57 +921,19 @@ def main(args):
         traj_reset.click(fn=fn_traj_reset, inputs=None, outputs=traj_args)
 
 
-        start.click(fn=model_run, inputs=[prompt, infer_mode, seed, n_samples], outputs=gen_video)
+        start.click(fn=pipeline, inputs=[prompt, infer_mode, seed, n_samples], outputs=gen_video)
 
         gr.Markdown(article)
 
     # demo.launch(server_name='0.0.0.0', share=False, server_port=args.port)
-    # demo.queue(concurrency_count=1, max_size=10)
-    # demo.launch()
-    demo.queue(max_size=10).launch(**args)
+    demo.queue(concurrency_count=1, max_size=10)
+    demo.launch()
+    
 
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--port", type=int, default=12345)
-
-    parser.add_argument(
-        '--listen',
-        type=str,
-        default='0.0.0.0' if 'SPACE_ID' in os.environ else '127.0.0.1',
-        help='IP to listen on for connections to Gradio',
-    )
-    parser.add_argument(
-        '--username', type=str, default='', help='Username for authentication'
-    )
-    parser.add_argument(
-        '--password', type=str, default='', help='Password for authentication'
-    )
-    parser.add_argument(
-        '--server_port',
-        type=int,
-        default=0,
-        help='Port to run the server listener on',
-    )
-    parser.add_argument(
-        '--inbrowser', action='store_true', help='Open in browser'
-    )
-    parser.add_argument(
-        '--share', action='store_true', help='Share the gradio UI'
-    )
-
+    parser.add_argument("--port", type=int, default=12345)
     args = parser.parse_args()
 
-    launch_kwargs = {}
-    launch_kwargs['server_name'] = args.listen
-
-    if args.username and args.password:
-        launch_kwargs['auth'] = (args.username, args.password)
-    if args.server_port:
-        launch_kwargs['server_port'] = args.server_port
-    if args.inbrowser:
-        launch_kwargs['inbrowser'] = args.inbrowser
-    if args.share:
-        launch_kwargs['share'] = args.share
-
-    main(launch_kwargs)
+    main(args)
