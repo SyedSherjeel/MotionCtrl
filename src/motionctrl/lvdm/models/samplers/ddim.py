@@ -4,8 +4,8 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from lvdm.common import noise_like
-from lvdm.models.utils_diffusion import (make_ddim_sampling_parameters,
+from motionctrl.lvdm.common import noise_like
+from motionctrl.lvdm.models.utils_diffusion import (make_ddim_sampling_parameters,
                                          make_ddim_timesteps)
 
 

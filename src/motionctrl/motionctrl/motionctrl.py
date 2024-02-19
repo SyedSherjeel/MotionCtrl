@@ -1,12 +1,12 @@
 import torch.nn as nn
 from einops import rearrange
 
-from lvdm.models.ddpm3d import LatentDiffusion
-from motionctrl.lvdm_modified_modules import (
+from motionctrl.lvdm.models.ddpm3d import LatentDiffusion
+from motionctrl.motionctrl.lvdm_modified_modules import (
     TemporalTransformer_forward, selfattn_forward_unet,
     spatial_forward_BasicTransformerBlock,
     temporal_selfattn_forward_BasicTransformerBlock)
-from utils.utils import instantiate_from_config
+from motionctrl.utils.utils import instantiate_from_config
 
 
 class MotionCtrl(LatentDiffusion):

@@ -6,8 +6,8 @@ from torch.utils.checkpoint import checkpoint
 from transformers import (CLIPTextModel, CLIPTokenizer, T5EncoderModel,
                           T5Tokenizer)
 
-from lvdm.common import autocast
-from utils.utils import count_params
+from motionctrl.lvdm.common import autocast
+from motionctrl.utils.utils import count_params
 
 
 class AbstractEncoder(nn.Module):

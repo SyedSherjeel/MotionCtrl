@@ -4,21 +4,21 @@ import importlib.util
 import cv2
 import numpy as np
 
-from gradio_utils.flow_utils import bivariate_Gaussian
+from motionctrl.gradio_utils.flow_utils import bivariate_Gaussian
 
 OBJECT_MOTION_MODE = ["Provided Trajectory", "Custom Trajectory"]
 
 spec = importlib.util.find_spec("motionctrl")
 package_root = os.path.dirname(str(spec.submodule_search_locations[0]))
 PROVIDED_TRAJS = {
-    "horizon_1": os.path.join(package_root, "examples", "trajectories", "horizon_2.txt"),
-    "swaying_1": os.path.join(package_root, "examples", "trajectories", "shake_1.txt"),
-    "swaying_2": os.path.join(package_root, "examples", "trajectories", "shake_2.txt"),
-    "swaying_3": os.path.join(package_root, "examples", "trajectories", "shaking_10.txt"),
-    "curve_1": os.path.join(package_root, "examples", "trajectories", "curve_1.txt"),
-    "curve_2": os.path.join(package_root, "examples", "trajectories", "curve_2.txt"),
-    "curve_3": os.path.join(package_root, "examples", "trajectories", "curve_3.txt"),
-    "curve_4": os.path.join(package_root, "examples", "trajectories", "curve_4.txt"),
+    "horizon_1": os.path.join(package_root, "motionctrl/examples", "trajectories", "horizon_2.txt"),
+    "swaying_1": os.path.join(package_root, "motionctrl/examples", "trajectories", "shake_1.txt"),
+    "swaying_2": os.path.join(package_root, "motionctrl/examples", "trajectories", "shake_2.txt"),
+    "swaying_3": os.path.join(package_root, "motionctrl/examples", "trajectories", "shaking_10.txt"),
+    "curve_1": os.path.join(package_root, "motionctrl/examples", "trajectories", "curve_1.txt"),
+    "curve_2": os.path.join(package_root, "motionctrl/examples", "trajectories", "curve_2.txt"),
+    "curve_3": os.path.join(package_root, "motionctrl/examples", "trajectories", "curve_3.txt"),
+    "curve_4": os.path.join(package_root, "motionctrl/examples", "trajectories", "curve_4.txt"),
 }
 
 
