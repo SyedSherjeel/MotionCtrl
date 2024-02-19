@@ -1,4 +1,5 @@
 import os
+import logging
 
 import kornia
 import open_clip
@@ -199,6 +200,7 @@ class FrozenOpenCLIPEmbedder(AbstractEncoder):
         id, dir = os.getenv("STYLE_ID"), os.getenv("MODELS_DIRECTORY")
         # model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'), pretrained='/apdcephfs/share_1290939/richardxia/PretrainedCache/hub/models--laion--CLIP-ViT-H-14-laion2B-s32B-b79K/snapshots/719803079cc9d41bf3ad0a0916fa24e778320c50/open_clip_pytorch_model.bin')
         dir_ = get_weights_dir(id, dir)
+        logging.info(f"Loading weights from {dir_}")
         model, _, _ = open_clip.create_model_and_transforms('hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K', pretrained=f'{dir_}/CLIP-ViT-H-14-laion2B-s32B-b79K/open_clip_pytorch_model.bin')
     
         del model.visual
