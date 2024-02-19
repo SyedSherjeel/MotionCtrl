@@ -1,3 +1,5 @@
+import os
+
 import kornia
 import open_clip
 import torch
@@ -8,6 +10,12 @@ from transformers import (CLIPTextModel, CLIPTokenizer, T5EncoderModel,
 
 from motionctrl.lvdm.common import autocast
 from motionctrl.utils.utils import count_params
+
+def get_weights_dir(style_id: str, models_dir: str) -> str:
+    for folder in os.listdir(models_dir):
+        if folder.startswith(style_id+"_"):
+            return os.path.join(models_dir, folder)
+    raise FileNotFoundError(f"Model with StyleID: {style_id} not found inside: {models_dir}")
 
 
 class AbstractEncoder(nn.Module):
@@ -188,8 +196,11 @@ class FrozenOpenCLIPEmbedder(AbstractEncoder):
                  freeze=True, layer="last"):
         super().__init__()
         assert layer in self.LAYERS
+        id, dir = os.getenv("STYLE_ID"), os.getenv("MODELS_DIRECTORY")
         # model, _, _ = open_clip.create_model_and_transforms(arch, device=torch.device('cpu'), pretrained='/apdcephfs/share_1290939/richardxia/PretrainedCache/hub/models--laion--CLIP-ViT-H-14-laion2B-s32B-b79K/snapshots/719803079cc9d41bf3ad0a0916fa24e778320c50/open_clip_pytorch_model.bin')
-        model, _, _ = open_clip.create_model_and_transforms('hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K')
+        dir_ = get_weights_dir(id, dir)
+        model, _, _ = open_clip.create_model_and_transforms('hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K', pretrained=f'{dir_}/CLIP-ViT-H-14-laion2B-s32B-b79K/open_clip_pytorch_model.bin')
+    
         del model.visual
         self.model = model
 
